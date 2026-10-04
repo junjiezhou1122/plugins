@@ -1,7 +1,7 @@
 {
   "name": "model-search",
   "version": "0.1.0",
-  "description": "Search and switch configured models directly with /model or /ms.",
+  "description": "Search and switch models by name or provider with /ms, leaving /model alone.",
   "author": { "name": "Junjie Zhou" },
   "license": "MIT",
   "keywords": ["models", "search", "picker"],

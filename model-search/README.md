@@ -1,12 +1,15 @@
 # model-search
 
-A searchable model picker for setups where `/model` lists more models than a
-menu can usefully show.
+A searchable model picker, for setups where the model list is longer than a menu
+can usefully show.
 
-Type `/model` (or `/ms`) and a palette opens with the query already focused.
-Results appear as you type, so there is no Tab to press and no dropdown to
-expand. The first match is highlighted, Enter selects it, and every visible row
-is clickable. Esc closes without changing anything.
+Type `/ms` and a palette opens with the query already focused. Results appear as
+you type, so there is no Tab to press and no dropdown to expand. The first match
+is highlighted, Enter selects it, and every visible row is clickable. Esc closes
+without changing anything.
+
+`/model` is left exactly as Claude Code ships it. This plugin adds a second way
+in rather than replacing the first.
 
 ## Install
 
@@ -15,28 +18,31 @@ claude plugin marketplace add junjiezhou1122/plugins
 claude plugin install model-search@plugins
 ```
 
-## Who this is for
+## Why you would reach for it
 
-The palette reads the model list from the `modelPicker` setting in your Claude
-Code settings. On a stock install that setting is absent, and the palette falls
-back to Claude Code's own aliases (`default`, `sonnet`, `opus`, `haiku`,
-`fable`, `best`, and the `[1m]` variants).
+Claude Code's `/model` menu lists every model and asks you to scroll. Behind a
+gateway such as [magpie](https://github.com/yetone/magpie) that list runs past a
+thousand entries, and the menu has no way to type into it. `/ms` searches
+model names, labels and provider IDs as you type.
 
-That fallback is about nine entries, which the built-in `/model` menu already
-handles well. **This plugin is worth installing when something writes a long
-`modelPicker` list for you**, which is the case when you sit behind a gateway
-such as [magpie](https://github.com/yetone/magpie) that aggregates many
-providers. If you do not have such a list, the built-in menu is the better
-choice.
+The palette reads its list from the `modelPicker` setting in your Claude Code
+settings, which is what a gateway writes. Without one there is nothing long to
+search, and `/model` is the better tool.
 
-## It replaces the built-in `/model`
+## Claude Code's own models come first
 
-Installing this plugin intercepts the built-in `model` command. Bare `/model`
-opens this palette instead of the native menu. `/model <id>` is untouched and
-still reaches the native switcher, so scripted switches and pasted model IDs
-keep working.
+The palette lists Claude Code's own names (`Default`, `Sonnet`, `Opus`, `Haiku`,
+`Fable`, `Best`, and the 1M-context variants) ahead of anything a gateway adds,
+so typing `opus` offers Claude Code's `Opus` first rather than burying it under
+every provider's Opus clone. Your current model is highlighted above both.
 
-To go back to the stock picker:
+## `/model` still works
+
+The plugin does not hook the built-in `model` command at all. `/model` opens
+Claude Code's own menu, `/model <id>` still switches directly, and the native
+menu's session-only option is untouched.
+
+To turn this plugin off entirely:
 
 ```bash
 claude plugin disable model-search@plugins

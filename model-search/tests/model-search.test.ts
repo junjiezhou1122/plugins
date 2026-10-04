@@ -27,7 +27,8 @@ function engine(on: On, picker: unknown, current = ID) {
   on('settings.read', () => ({ value: { modelPicker: pickerValue } }))
   on('config.list', () => ({ value: [{
     key: 'model', label: 'Model', kind: 'choice', value: current,
-    options: ['default', 'sonnet'], provider: { plugin: 'engine', tier: 'core' }, isLocked: false,
+    options: ['default', 'sonnet', 'opus', 'haiku', 'fable', 'best', 'opusplan', 'sonnet[1m]', 'opus[1m]', 'fable[1m]'],
+    provider: { plugin: 'engine', tier: 'core' }, isLocked: false,
   } satisfies ConfigRow] }))
   on('session.model', () => ({ value: current }))
   on('command.register', ($, e) => ({ value: { command: e.name } }))
@@ -35,7 +36,11 @@ function engine(on: On, picker: unknown, current = ID) {
   on('ui.open', ($, e) => { opened.push(e); return { value: { isPlaced: true } } })
   on('ui.close', ($, e) => { closed.push(e.id); return { value: undefined } })
   on('ui.focus', ($, e) => { if (e.element !== undefined) focused.push(e.element); return {} })
-  on('command.run', { command: 'model' }, ($, e) => { switched.push(e.args); return { text: `Set model to ${e.args}` } })
+  on('command.run', { command: 'model' }, ($, e) => {
+    if (e.args === '') return { text: 'Select model' }
+    switched.push(e.args)
+    return { text: `Set model to ${e.args}` }
+  })
   return {
     switched, opened, focused, closed,
     setPicker: (picker: unknown) => { pickerValue = picker },
@@ -43,24 +48,26 @@ function engine(on: On, picker: unknown, current = ID) {
   }
 }
 
-async function open($: Engine, args = '', command = 'model') {
+async function open($: Engine, args = '', command = 'ms') {
   await $.command.run({ command, args, origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 120 } })
 }
 
 for (const surface of ['terminal', 'desktop'] as const) {
-  test(`${surface} /model displays results immediately and input Enter switches without Tab or Select`, async ($, on) => {
+  test(`${surface} /ms displays results immediately and input Enter switches without Tab or Select`, async ($, on) => {
     const models = Array.from({ length: 1200 }, (_, i) => ({ model: `vendor/model-${i}`, label: `Model ${i}`, description: 'General model' }))
     models.push({ model: ID, label: 'Orchid reasoning', description: 'Deep planning engine' })
     models.push({ model: ID, label: 'Duplicate alias', description: 'Duplicate must not render' })
     const state = engine(on, { options: models })
     await open($)
     const ui = await $.ui.mount({ plugin: PLUGIN, surface, component: 'Pane', requestId: PLUGIN, props: PANE })
+    // 1200 vendor rows + the one deduplicated ID, plus Claude Code's 10 aliases.
+    const total = 1201 + 10
     expect(await ui.find({ type: 'Select' })).toBeUndefined()
     expect(await ui.find({ type: 'Client' })).toBeUndefined()
     expect((await ui.find({ key: 'query' }))?.props.autoFocus).toBe(true)
     expect((await ui.find({ key: 'model-0' }))?.props.label).toBe('Orchid reasoning · current')
     expect((await ui.find({ key: 'model-0' }))?.props.variant).toBe('primary')
-    expect((await ui.find({ type: 'Text', text: '1203' }))?.text).toContain('1203')
+    expect((await ui.find({ type: 'Text', text: String(total) }))?.text).toContain(String(total))
     for (const text of ['O', 'OR', 'ORCHID', 'ORCHID planning']) {
       await ui.input({ key: 'query', text, kind: 'change' })
       await ui.redraw()
@@ -114,12 +121,15 @@ for (const surface of ['terminal', 'desktop'] as const) {
   })
 }
 
-test('any nonempty /model arguments reach native switching without opening or recursion', async ($, on) => {
+test('the built-in /model is left entirely alone, with and without arguments', async ($, on) => {
   const state = engine(on, { options: [{ model: ID, label: 'Orchid', description: '' }] })
-  await open($, `${ID} s`)
-  await open($, ' ')
-  expect(state.switched).toEqual([`${ID} s`, ' '])
+  const results = await Promise.all([
+    $.command.run({ command: 'model', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 120 } }),
+    $.command.run({ command: 'model', args: `${ID} s`, origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 120 } }),
+  ])
   expect(state.opened).toEqual([])
+  expect(state.switched).toEqual([`${ID} s`])
+  for (const result of results) expect(result).toHaveProperty('text')
 })
 
 test('no curated picker falls back to documented engine aliases', async ($, on) => {
@@ -128,6 +138,21 @@ test('no curated picker falls back to documented engine aliases', async ($, on) 
   const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'Pane', requestId: PLUGIN, props: PANE })
   await ui.input({ key: 'query', text: 'default', kind: 'submit' })
   expect(state.switched).toEqual(['default'])
+  await ui.unmount()
+})
+
+test("Claude Code's own aliases outrank the gateway's models for the same word", async ($, on) => {
+  const state = engine(on, { options: [
+    { model: 'cliproxy/opus-4-6', label: 'Claude Opus 4.6', description: '' },
+    { model: 'vendor/opus-4-6', label: 'Claude Opus 4.6', description: '' },
+  ] }, 'sonnet')
+  await open($, 'opus')
+  const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'Pane', requestId: PLUGIN, props: PANE })
+  await ui.input({ key: 'query', text: 'opus', kind: 'change' })
+  await ui.redraw()
+  expect((await ui.find({ key: 'model-0' }))?.props.label).toBe('Opus')
+  await ui.input({ key: 'query', text: 'opus', kind: 'submit' })
+  expect(state.switched).toEqual(['opus'])
   await ui.unmount()
 })
 

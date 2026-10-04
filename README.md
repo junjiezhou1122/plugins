@@ -21,7 +21,7 @@ claude plugin marketplace remove plugins
 
 | Plugin | What it does |
 | --- | --- |
-| [model-search](model-search/) | A searchable `/model` palette, for setups where the built-in menu lists more models than you can scroll. |
+| [model-search](model-search/) | A searchable model palette on `/ms`, for when the model list is too long to scroll. Leaves `/model` alone. |
 
 Each plugin has its own README with the detail. This one only covers the
 marketplace itself.

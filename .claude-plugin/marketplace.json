@@ -8,7 +8,7 @@
     {
       "name": "model-search",
       "source": "./model-search",
-      "description": "Search and switch configured models directly with /model or /ms."
+      "description": "Search and switch models by name or provider with /ms, leaving /model alone."
     }
   ]
 }

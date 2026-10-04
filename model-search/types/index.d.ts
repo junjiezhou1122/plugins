@@ -2,6 +2,7 @@ export type ModelSearchOption = {
   model: string
   label: string
   description: string
+  alias?: boolean
 }
 
 export type ModelSearchState =

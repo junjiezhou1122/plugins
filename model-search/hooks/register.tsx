@@ -6,6 +6,20 @@ const PANE = 'model-search'
 const PICKER = { plugin: 'model-search', key: 'picker' } as const
 const MAX_CHOICES = 8
 
+/** Claude Code's own model names, which the picker offers ahead of anything a gateway adds. */
+const ALIAS_LABELS: Record<string, string> = {
+  default: 'Default (recommended)',
+  sonnet: 'Sonnet',
+  opus: 'Opus',
+  haiku: 'Haiku',
+  fable: 'Fable',
+  best: 'Best',
+  opusplan: 'Opus plan',
+  'sonnet[1m]': 'Sonnet (1M context)',
+  'opus[1m]': 'Opus (1M context)',
+  'fable[1m]': 'Fable (1M context)',
+}
+
 function configuredModels(value: unknown): ModelSearchOption[] | undefined {
   if (value === undefined) return undefined
   if (value === null || typeof value !== 'object' || !('options' in value) || !Array.isArray(value.options)) {
@@ -58,13 +72,21 @@ async function openPicker($: EngineInterface, query: string): Promise<void> {
     const settings = await $.settings.read()
     const models = configuredModels(settings.modelPicker) ?? []
     const row = (await $.config.list()).find(row => row.key === 'model' && row.provider.plugin === 'engine')
+    const aliases: ModelSearchOption[] = []
     for (const model of row?.options ?? []) {
-      if (!models.some(row => row.model === model)) models.push({ model, label: model, description: '' })
+      if (models.some(row => row.model === model)) continue
+      aliases.push({ model, label: ALIAS_LABELS[model] ?? model, description: '', alias: true })
+    }
+    if (!aliases.some(row => row.model === 'default')) {
+      aliases.unshift({ model: 'default', label: ALIAS_LABELS['default'] ?? 'default', description: '', alias: true })
     }
     const current = await $.session.model()
-    if (!models.some(row => row.model === current)) models.unshift({ model: current, label: current, description: '' })
-    if (!models.some(row => row.model === 'default')) models.push({ model: 'default', label: 'Default', description: 'Use the built-in default model' })
-    models.sort((a, b) => Number(b.model === current) - Number(a.model === current))
+    if (!models.some(row => row.model === current) && !aliases.some(row => row.model === current)) {
+      aliases.push({ model: current, label: current, description: '', alias: true })
+    }
+    // Claude Code's own names first, then the current model, then the gateway's list.
+    models.unshift(...aliases)
+    models.sort((a, b) => Number(b.model === current) - Number(a.model === current) || Number(b.alias ?? false) - Number(a.alias ?? false))
     await update($, PICKER, (state): ModelSearchState => state?.kind === 'loading' ? { kind: 'ready', query: state.query, current, models } : state ?? { kind: 'closed' })
     await $.ui.focus({ requestId: PANE, key: 'query' })
   } catch (error) {
@@ -92,12 +114,11 @@ async function selectModel($: EngineInterface, query: string, selected: number):
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    for (const name of ['model-search', 'ms']) await $.command.register({ name, description: 'Search and switch models', argumentHint: '[search words]' })
+    for (const name of ['model-search', 'ms']) await $.command.register({ name, description: 'Search and switch models by name or provider', argumentHint: '[search words]' })
     return next(e)
   })
 
-  on('command.run', { command: ['model', 'model-search', 'ms'] }, async ($, e, next) => {
-    if (e.command === 'model' && e.args !== '') return next(e)
+  on('command.run', { command: ['model-search', 'ms'] }, async ($, e) => {
     await openPicker($, e.args)
     return {}
   })
@@ -121,7 +142,7 @@ export const register: Register = on => {
       <Button key="retry" label="Retry" onPress={() => openPicker($, state.query)} />
       {cancel}
     </Box>
-    if (e.surface !== 'terminal' && e.surface !== 'desktop') return <Box flexDirection="column"><Text>Use /ms in the terminal to search models.</Text>{cancel}</Box>
+    if (e.surface !== 'terminal' && e.surface !== 'desktop') return <Box flexDirection="column"><Text>Use /ms in the terminal to search models. /model still opens Claude Code's own list.</Text>{cancel}</Box>
     const { Input } = $.ui.resolve(e)
     const palette = paletteProps(state)
     const width = Math.max(20, e.props.bodyColumns - 22)

@@ -1,0 +1,14 @@
+{
+  "name": "jz-plugins",
+  "owner": {
+    "name": "Junjie Zhou"
+  },
+  "description": "Personal Claude Code plugins.",
+  "plugins": [
+    {
+      "name": "model-search",
+      "source": "./model-search",
+      "description": "Search and switch configured models directly with /model or /ms."
+    }
+  ]
+}

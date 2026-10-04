@@ -1,9 +1,9 @@
 {
-  "name": "jz-plugins",
+  "name": "plugins",
   "owner": {
     "name": "Junjie Zhou"
   },
-  "description": "Personal Claude Code plugins.",
+  "description": "Junjie Zhou's Claude Code plugins and skills.",
   "plugins": [
     {
       "name": "model-search",
